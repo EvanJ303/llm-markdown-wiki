@@ -1,3 +1,5 @@
+PRAGMA foreign_keys = ON;
+
 CREATE TABLE IF NOT EXISTS documents (
     id INTEGER PRIMARY KEY,
     path TEXT NOT NULL,
@@ -24,4 +26,4 @@ CREATE VIRTUAL TABLE IF NOT EXISTS chunks_fts USING fts5(
     content,
     content='chunks',
     contentrowid='chunk_id'
-)
+);
