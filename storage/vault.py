@@ -50,10 +50,49 @@ class Vault:
         pass
 
     def _upsert_document_row(self, document: Document) -> int:
-        pass
+        self.conn.execute(
+            '''
+            INSERT INTO documents (path, type, size, created, modified, hash, processed)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT(path) DO UPDATE SET
+                type = excluded.type,
+                size = excluded.size,
+                created = excluded.created,
+                modified = excluded.modified,
+                hash = excluded.hash,
+                processed = excluded.processed
+            ''',
+            (
+                str(document.path),
+                document.type,
+                document.size,
+                document.created,
+                document.modified,
+                document.hash,
+                document.processed,
+            ),
+        )
+        self.conn.commit()
+
+        row = self.conn.execute(
+            'SELECT id FROM documents WHERE path = ?',
+            (str(document.path),),
+        ).fetchone()
+        
+        return int(row[0])
 
     def _insert_chunk_row(self, chunk: Chunk) -> None:
-        pass
+        self.conn.execute(
+            '''
+            INSERT INTO chunks (content, page)
+            VALUES (?, ?)
+            ''',
+            (
+                chunk.content,
+                chunk.page,
+            ),
+        )
+        self.conn.commit()
 
     def _cache_document(self, path: Path) -> None:
         pass
