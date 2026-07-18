@@ -20,7 +20,11 @@ CREATE TABLE IF NOT EXISTS chunks (
     page INTEGER
 
     FOREIGN KEY(document_id) REFERENCES documents(id)
+    ON DELETE CASCADE
+    ON UPDATE CASCADE
 );
+
+CREATE INDEX idx_chunks_document_id ON chunks(document_id);
 
 CREATE VIRTUAL TABLE IF NOT EXISTS chunks_fts USING fts5(
     content,

@@ -4,6 +4,16 @@ import sqlite3
 from pathlib import Path
 
 @dataclass
+class Document:
+    path: Path
+    type: str
+    size: int
+    created: str
+    modified: str
+    hash: str
+    processed: bool
+
+@dataclass
 class Chunk:
     content: str
     page: int | None = None
@@ -14,19 +24,18 @@ class SearchHit:
     snippet: str
     page: int | None = None
 
-
 class Vault:
     def __init__(self, root: Path) -> None:
         self.root = root.resolve()
 
-        wiki_path = self.root / 'wiki'
-        cache_path = self.root / '.llmwiki/cache'
-        db_path = self.root / '.llmwiki/index.db'
+        self.wiki_path = self.root / 'wiki'
+        self.cache_path = self.root / '.llmwiki/cache'
+        self.db_path = self.root / '.llmwiki/index.db'
 
-        wiki_path.mkdir(parents=True, exist_ok=True)
-        cache_path.mkdir(exist_ok=True)
+        self.wiki_path.mkdir(parents=True, exist_ok=True)
+        self.cache_path.mkdir(exist_ok=True)
 
-        self.conn = sqlite3.connect(db_path)
+        self.conn = sqlite3.connect(self.db_path)
         
         schema_path = Path(__file__).resolve().parent / 'schema.sql'
         with open(schema_path, 'r') as f:
@@ -40,16 +49,40 @@ class Vault:
     def _chunk_text(self, text: str) -> list[Chunk]:
         pass
 
-    def search(self, query: str) -> list[SearchHit]:
+    def _upsert_document_row(self, document: Document) -> int:
         pass
 
-    def read_file(self, path: Path, page_start: int | None = None, page_end: int | None = None) -> str:
+    def _insert_chunk_row(self, chunk: Chunk) -> None:
         pass
 
-    def write_page(self, path: Path) -> None:
+    def _cache_document(self, path: Path) -> None:
+        pass
+
+    def _delete_cache_entry(self, path: Path) -> None:
+        pass
+
+    def _index_document(self, path: Path) -> None:
+        pass
+
+    def _remove_document(self, path: Path) -> None:
         pass
 
     def index_db(self) -> None:
+        pass
+
+    def search(self, query: str) -> list[SearchHit]:
+        pass
+
+    def read_document(self, path: Path, page_start: int | None = None, page_end: int | None = None) -> str:
+        pass
+
+    def write_page(self, path: Path, content: str) -> None:
+        pass
+
+    def edit_page(self, path: Path, content: str) -> None:
+        pass
+
+    def delete_page(self, path: Path) -> None:
         pass
 
     def close(self) -> None:
