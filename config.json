@@ -1,0 +1,5 @@
+{
+    "min_chunk_tokens" : 1,
+    "max_chunk_tokens" : 1,
+    "chunk_overlap" : 1
+}

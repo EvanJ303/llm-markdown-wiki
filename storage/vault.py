@@ -2,6 +2,7 @@ import json
 from dataclasses import dataclass
 import sqlite3
 from pathlib import Path
+from typing import List
 
 @dataclass
 class Document:
@@ -35,19 +36,78 @@ class Vault:
         self.wiki_path.mkdir(parents=True, exist_ok=True)
         self.cache_path.mkdir(exist_ok=True)
 
+        config_path = Path(__file__).resolve().parent.parent / 'config.json'
+        with open(config_path, 'r', encoding='utf-8') as f:
+            self.chunk_size = f['chunk_size']
+            self.chunk_overlap = f['chunk_overlap']
+            self.min_chunk_tokens = f['min_chunk_tokens']
+            self.max_chunk_chars = f['max_chunk_chars']
+
         self.conn = sqlite3.connect(self.db_path)
         
         schema_path = Path(__file__).resolve().parent / 'schema.sql'
-        with open(schema_path, 'r') as f:
+        with open(schema_path, 'r', encoding='utf-8') as f:
             schema = f.read()
 
         self.conn.executescript(schema)
 
     def _extract_text(self, path: Path) -> str:
-        pass
+        suffix = path.suffix.lower()
+        try:
+            if suffix == '.pdf':
+                from pypdf import PdfReader
 
-    def _chunk_text(self, text: str) -> list[Chunk]:
-        pass
+                reader = PdfReader(str(path))
+                parts: List[str] = []
+                for page in reader.pages:
+                    text = page.extract_text()
+                    if text:
+                        parts.append(text)
+                return '\n'.join(parts)
+
+            if suffix == '.docx':
+                from docx import Document as DocxDocument
+
+                doc = DocxDocument(path)
+                return '\n'.join(p.text for p in doc.paragraphs if p.text)
+
+            if suffix in ('.xlsx', '.xlsm', '.xltx', '.xltm'):
+                from openpyxl import load_workbook
+
+                wb = load_workbook(filename=path, read_only=True, data_only=True)
+                parts: List[str] = []
+                for sheet in wb.worksheets:
+                    parts.append(f'=== Sheet: {sheet.title} ===')
+                    for row in sheet.iter_rows(values_only=True):
+                        row_vals = [str(cell) if cell is not None else '' for cell in row]
+                        parts.append('\t'.join(row_vals))
+                return '\n'.join(parts)
+
+            # fallback: try to read as plain text
+            try:
+                return path.read_text(encoding='utf-8', errors='ignore')
+            except Exception:
+                return ''
+        except Exception:
+            return ''
+
+    def _read_and_chunk_text(self, path: Path) -> list[Chunk]:
+        text = self._extract_text(path)
+
+        paragraphs = [p.strip() for p in text.split('\n\n')]
+        chunks = []
+        current = ''
+
+        for paragraph in paragraphs:
+            if len(current + paragraphs) // 4 <= self.max_chunk_tokens:
+                current += paragraph
+            else:
+                if len(current) // 4 >= self.min_chunk_tokens:
+                    chunks.append(Chunk, current, page)
+
+                current = ''
+
+                
 
     def _upsert_document_row(self, document: Document) -> int:
         self.conn.execute(
