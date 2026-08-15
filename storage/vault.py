@@ -441,10 +441,106 @@ class Vault:
             return
 
     def index_db(self) -> None:
-        pass
+        try:
+            # Index all files under the wiki path
+            indexed_paths = set()
+            for p in self.wiki_path.rglob('*'):
+                if not p.is_file():
+                    continue
+                try:
+                    self._index_document(p)
+                    indexed_paths.add(str(p.resolve()))
+                except Exception:
+                    # continue indexing other files even if one fails
+                    continue
+
+            # Remove documents from DB that no longer exist on disk
+            try:
+                rows = self.conn.execute('SELECT path FROM documents').fetchall()
+                for (doc_path,) in rows:
+                    try:
+                        if not Path(doc_path).exists():
+                            # this will remove DB row and cache files
+                            self._remove_document(Path(doc_path))
+                    except Exception:
+                        continue
+            except Exception:
+                pass
+
+            # Remove stale cache files that point to missing documents
+            try:
+                for f in self.cache_path.glob('*.json'):
+                    try:
+                        obj = json.loads(f.read_text(encoding='utf-8'))
+                        pth = obj.get('path')
+                        if pth and not Path(pth).exists():
+                            try:
+                                f.unlink()
+                            except Exception:
+                                pass
+                    except Exception:
+                        # if parse/read fails, leave cache file alone
+                        continue
+            except Exception:
+                pass
+
+        except Exception:
+            return
 
     def search(self, query: str) -> list[SearchHit]:
-        pass
+        hits: List[SearchHit] = []
+        if not query or not query.strip():
+            return hits
+
+        q = query.strip()
+
+        try:
+            # Try full-text search with FTS5 and produce a highlighted snippet
+            sql = (
+                "SELECT documents.path as path, "
+                "snippet(chunks_fts, '<b>', '</b>', '...', 64) as snippet, "
+                "chunks.page as page "
+                "FROM chunks_fts "
+                "JOIN chunks ON chunks_fts.rowid = chunks.chunk_id "
+                "JOIN documents ON chunks.document_id = documents.id "
+                "WHERE chunks_fts MATCH ? "
+                "LIMIT 200"
+            )
+            cur = self.conn.execute(sql, (q,))
+            for row in cur.fetchall():
+                path_str, snippet_text, page = row
+                if not snippet_text:
+                    snippet_text = ''
+                hits.append(SearchHit(path=Path(path_str), snippet=snippet_text, page=(page if page is not None else None)))
+            return hits
+        except Exception:
+            # Fallback to simple LIKE search if FTS not available
+            try:
+                like_q = f"%{q}%"
+                cur = self.conn.execute(
+                    'SELECT documents.path, chunks.content, chunks.page FROM chunks JOIN documents ON chunks.document_id = documents.id WHERE chunks.content LIKE ? LIMIT 200',
+                    (like_q,)
+                )
+                for path_str, content, page in cur.fetchall():
+                    snippet_text = ''
+                    try:
+                        lower = content.lower()
+                        idx = lower.find(q.lower())
+                        if idx >= 0:
+                            start = max(0, idx - 64)
+                            end = min(len(content), idx + len(q) + 64)
+                            prefix = '...' if start > 0 else ''
+                            suffix = '...' if end < len(content) else ''
+                            snippet_text = f"{prefix}{content[start:end]}{suffix}"
+                        else:
+                            snippet_text = (content[:128] + '...') if len(content) > 128 else content
+                    except Exception:
+                        snippet_text = (content[:128] + '...') if len(content) > 128 else content
+
+                    hits.append(SearchHit(path=Path(path_str), snippet=snippet_text, page=(page if page is not None else None)))
+                return hits
+            except Exception:
+                return hits
 
     def read_document(self, path: Path, page_start: int | None = None, page_end: int | None = None) -> str:
         pass
