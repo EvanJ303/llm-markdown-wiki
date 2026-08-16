@@ -30,11 +30,9 @@ class Vault:
         self.root = root.resolve()
 
         self.wiki_path = self.root / 'wiki'
-        self.cache_path = self.root / '.llmwiki/cache'
         self.db_path = self.root / '.llmwiki/index.db'
 
         self.wiki_path.mkdir(parents=True, exist_ok=True)
-        self.cache_path.mkdir(exist_ok=True)
 
         config_path = Path(__file__).resolve().parent.parent / 'config.json'
         with open(config_path, 'r', encoding='utf-8') as f:
@@ -254,167 +252,81 @@ class Vault:
         )
         self.conn.commit()
 
-    def _cache_document(self, path: Path) -> None:
+    def _is_document_unchanged(self, path: Path) -> bool:
         try:
             import hashlib
-            import time
 
-            p = path.resolve()
-            # compute content hash
-            try:
-                data = p.read_bytes()
-            except Exception:
-                return
-
-            file_hash = hashlib.sha256(data).hexdigest()
+            p = Path(path).resolve()
             stat = p.stat()
+            current_mtime = str(stat.st_mtime)
+            current_hash = hashlib.sha256(p.read_bytes()).hexdigest()
 
-            # cache file name derived from path to avoid collisions
-            path_sig = hashlib.sha256(str(p).encode('utf-8')).hexdigest()
-            cache_name = f"{p.name}_{path_sig}.json"
-            cache_file = self.cache_path / cache_name
+            row = self.conn.execute(
+                'SELECT modified, hash FROM documents WHERE path = ?',
+                (str(p),),
+            ).fetchone()
+            if row is None:
+                return False
 
-            # if cache exists and hash matches, nothing to do
-            if cache_file.exists():
-                try:
-                    existing = json.loads(cache_file.read_text(encoding='utf-8'))
-                    if existing.get('hash') == file_hash:
-                        return
-                except Exception:
-                    # if reading/parsing fails, we'll overwrite
-                    pass
-
-            # generate processed chunks
-            try:
-                chunks = [
-                    {'content': c.content, 'page': c.page}
-                    for c in self._read_and_chunk_text(p)
-                    if c.content and c.content.strip()
-                ]
-            except Exception:
-                chunks = []
-
-            payload = {
-                'path': str(p),
-                'name': p.name,
-                'hash': file_hash,
-                'size': stat.st_size,
-                'modified': stat.st_mtime,
-                'cached_at': time.time(),
-                'chunks': chunks,
-            }
-
-            cache_file.write_text(json.dumps(payload, ensure_ascii=False), encoding='utf-8')
+            stored_mtime, stored_hash = row
+            return stored_mtime == current_mtime and stored_hash == current_hash
         except Exception:
-            return
-
-    def _delete_cache_entry(self, path: Path) -> None:
-        try:
-            import hashlib
-
-            p = path.resolve()
-            path_sig = hashlib.sha256(str(p).encode('utf-8')).hexdigest()
-            # primary cache filename
-            cache_name = f"{p.name}_{path_sig}.json"
-            cache_file = self.cache_path / cache_name
-            if cache_file.exists():
-                try:
-                    cache_file.unlink()
-                except Exception:
-                    pass
-
-            # also remove any cache files that reference this path in their JSON payload
-            for f in self.cache_path.glob('*.json'):
-                try:
-                    txt = f.read_text(encoding='utf-8')
-                    obj = json.loads(txt)
-                    if obj.get('path') == str(p):
-                        try:
-                            f.unlink()
-                        except Exception:
-                            pass
-                except Exception:
-                    # if parse/read fails, ignore
-                    continue
-        except Exception:
-            return
+            return False
 
     def _index_document(self, path: Path) -> None:
         try:
+            import hashlib
+
             p = Path(path).resolve()
 
-            # ensure cache is up to date
-            self._cache_document(p)
+            if self._is_document_unchanged(p):
+                return
 
-            # find corresponding cache file (match by stored path)
-            cache_obj = None
-            for f in self.cache_path.glob('*.json'):
-                try:
-                    obj = json.loads(f.read_text(encoding='utf-8'))
-                    if obj.get('path') == str(p):
-                        cache_obj = obj
-                        break
-                except Exception:
-                    continue
-
-            # fallback: if no cache found, generate chunks directly
-            chunks = []
-            file_hash = None
-            stat = None
             try:
                 stat = p.stat()
             except Exception:
                 stat = None
 
-            if cache_obj:
-                chunks = cache_obj.get('chunks', [])
-                file_hash = cache_obj.get('hash')
-            else:
-                try:
-                    chunks = [{'content': c.content, 'page': c.page} for c in self._read_and_chunk_text(p)]
-                except Exception:
-                    chunks = []
+            chunks = []
+            try:
+                chunks = self._read_and_chunk_text(p)
+            except Exception:
+                chunks = []
 
-            # prepare document metadata
             doc = Document(
                 path=p,
                 type=p.suffix.lower().lstrip('.'),
                 size=(stat.st_size if stat is not None else 0),
                 created=(str(stat.st_birthtime) if stat is not None else ''),
                 modified=(str(stat.st_mtime) if stat is not None else ''),
-                hash=(file_hash or ''),
+                hash=(hashlib.sha256(p.read_bytes()).hexdigest() if stat is not None else ''),
                 processed=True,
             )
 
             doc_id = self._upsert_document_row(doc)
 
-            # replace chunks for this document
             try:
                 self.conn.execute('DELETE FROM chunks WHERE document_id = ?', (doc_id,))
             except Exception:
                 pass
 
-            for ch in chunks:
+            for chunk in chunks:
                 try:
-                    content = ch.get('content') if isinstance(ch, dict) else getattr(ch, 'content', '')
-                    page = ch.get('page') if isinstance(ch, dict) else getattr(ch, 'page', None)
-                    if not content or not str(content).strip():
+                    if not chunk.content or not str(chunk.content).strip():
                         continue
                     self.conn.execute(
                         'INSERT INTO chunks (document_id, content, page) VALUES (?, ?, ?)',
-                        (doc_id, content, page),
+                        (doc_id, chunk.content, chunk.page),
                     )
                 except Exception:
                     continue
 
             self.conn.commit()
 
-            # try to rebuild FTS index if present
             try:
                 self.conn.execute("INSERT INTO chunks_fts(chunks_fts) VALUES('rebuild')")
                 self.conn.commit()
             except Exception:
-                # ignore if fts table not present or rebuild unsupported
                 pass
 
         except Exception:
@@ -423,63 +335,33 @@ class Vault:
     def _remove_document(self, path: Path) -> None:
         try:
             p = Path(path).resolve()
-
-            # remove cache entries for this path
-            try:
-                self._delete_cache_entry(p)
-            except Exception:
-                pass
-
-            # delete document row; chunks table has ON DELETE CASCADE
             try:
                 self.conn.execute('DELETE FROM documents WHERE path = ?', (str(p),))
                 self.conn.commit()
             except Exception:
-                # best-effort: ignore failures
                 pass
         except Exception:
             return
 
     def index_db(self) -> None:
         try:
-            # Index all files under the wiki path
-            indexed_paths = set()
             for p in self.wiki_path.rglob('*'):
                 if not p.is_file():
                     continue
                 try:
+                    if self._is_document_unchanged(p):
+                        continue
                     self._index_document(p)
-                    indexed_paths.add(str(p.resolve()))
                 except Exception:
-                    # continue indexing other files even if one fails
                     continue
 
-            # Remove documents from DB that no longer exist on disk
             try:
                 rows = self.conn.execute('SELECT path FROM documents').fetchall()
                 for (doc_path,) in rows:
                     try:
                         if not Path(doc_path).exists():
-                            # this will remove DB row and cache files
                             self._remove_document(Path(doc_path))
                     except Exception:
-                        continue
-            except Exception:
-                pass
-
-            # Remove stale cache files that point to missing documents
-            try:
-                for f in self.cache_path.glob('*.json'):
-                    try:
-                        obj = json.loads(f.read_text(encoding='utf-8'))
-                        pth = obj.get('path')
-                        if pth and not Path(pth).exists():
-                            try:
-                                f.unlink()
-                            except Exception:
-                                pass
-                    except Exception:
-                        # if parse/read fails, leave cache file alone
                         continue
             except Exception:
                 pass
