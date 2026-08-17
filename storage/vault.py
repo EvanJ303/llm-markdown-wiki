@@ -25,6 +25,13 @@ class SearchHit:
     snippet: str
     page: int | None = None
 
+@dataclass
+class DocumentContent:
+    content: str
+    created: str
+    modified: str
+    path: Path
+
 class Vault:
     def __init__(self, root: Path) -> None:
         self.root = root.resolve()
@@ -424,17 +431,114 @@ class Vault:
             except Exception:
                 return hits
 
-    def read_document(self, path: Path, page_start: int | None = None, page_end: int | None = None) -> str:
-        pass
+    def read_document(self, path: Path, page_start: int | None = None, page_end: int | None = None) -> DocumentContent:
+        p = Path(path).resolve()
+
+        doc_row = self.conn.execute(
+            'SELECT created, modified FROM documents WHERE path = ?',
+            (str(p),),
+        ).fetchone()
+
+        if doc_row is None:
+            created = str(p.stat().st_ctime) if p.exists() else ''
+            modified = str(p.stat().st_mtime) if p.exists() else ''
+        else:
+            created, modified = doc_row
+
+        query = 'SELECT content, page FROM chunks JOIN documents ON chunks.document_id = documents.id WHERE documents.path = ?'
+        params: List[object] = [str(p)]
+
+        if page_start is not None or page_end is not None:
+            clauses = []
+            if page_start is not None:
+                clauses.append('chunks.page >= ?')
+                params.append(page_start)
+            if page_end is not None:
+                clauses.append('chunks.page <= ?')
+                params.append(page_end)
+            query += ' AND ' + ' AND '.join(clauses)
+
+        query += ' ORDER BY chunks.page ASC, chunks.rowid ASC'
+
+        rows = self.conn.execute(query, params).fetchall()
+        if not rows:
+            # fallback: if database has no rows yet, read the source file directly
+            text = self._extract_text(p)
+            raw_parts: List[str] = []
+            for segment, page in text:
+                if page_start is not None and page is not None and page < page_start:
+                    continue
+                if page_end is not None and page is not None and page > page_end:
+                    continue
+                raw_parts.append(segment)
+            content = '\n\n'.join(raw_parts).strip()
+            return DocumentContent(content=content, created=created, modified=modified, path=p)
+
+        content_parts: List[str] = []
+        for chunk_content, page in rows:
+            if page_start is not None and page is not None and page < page_start:
+                continue
+            if page_end is not None and page is not None and page > page_end:
+                continue
+            if chunk_content:
+                content_parts.append(str(chunk_content))
+
+        content = '\n\n'.join(content_parts).strip()
+        return DocumentContent(content=content, created=created, modified=modified, path=p)
+
+    def _resolve_wiki_path(self, path: Path) -> Path:
+        if path.is_absolute():
+            target = path.resolve()
+        else:
+            target = (self.wiki_path / path).resolve()
+
+        wiki_root = self.wiki_path.resolve()
+        try:
+            target.relative_to(wiki_root)
+        except ValueError as exc:
+            raise ValueError(f'page path must be inside the wiki directory: {path}') from exc
+
+        return target
+
+    def _ensure_markdown_path(self, path: Path) -> Path:
+        target = Path(path)
+        if target.suffix.lower() not in {'.md', '.markdown'}:
+            return target.with_suffix('.md')
+        return target
+
+    def _write_page_content(self, target: Path, content: str) -> None:
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text(content, encoding='utf-8')
+        self._index_document(target)
 
     def write_page(self, path: Path, content: str) -> None:
-        pass
+        if not isinstance(content, str):
+            raise TypeError('content must be a string')
+
+        target = self._resolve_wiki_path(path)
+        target = self._ensure_markdown_path(target)
+        self._write_page_content(target, content)
 
     def edit_page(self, path: Path, content: str) -> None:
-        pass
+        if not isinstance(content, str):
+            raise TypeError('content must be a string')
+
+        target = self._resolve_wiki_path(path)
+        target = self._ensure_markdown_path(target)
+
+        if not target.exists():
+            raise FileNotFoundError(f'page does not exist: {target}')
+
+        self._write_page_content(target, content)
 
     def delete_page(self, path: Path) -> None:
-        pass
+        target = self._resolve_wiki_path(path)
+        target = self._ensure_markdown_path(target)
+
+        if target.exists():
+            target.unlink()
+
+        self._remove_document(target)
 
     def close(self) -> None:
         self.conn.close()
