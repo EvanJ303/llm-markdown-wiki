@@ -266,7 +266,6 @@ class Vault:
             p = Path(path).resolve()
             stat = p.stat()
             current_mtime = str(stat.st_mtime)
-            current_hash = hashlib.sha256(p.read_bytes()).hexdigest()
 
             row = self.conn.execute(
                 'SELECT modified, hash FROM documents WHERE path = ?',
@@ -276,7 +275,11 @@ class Vault:
                 return False
 
             stored_mtime, stored_hash = row
-            return stored_mtime == current_mtime and stored_hash == current_hash
+            if stored_mtime == current_mtime:
+                return True
+
+            current_hash = hashlib.sha256(p.read_bytes()).hexdigest()
+            return stored_hash == current_hash
         except Exception:
             return False
 
