@@ -522,9 +522,11 @@ class Vault:
         target = self._ensure_markdown_path(target)
         self._write_page_content(target, content)
 
-    def edit_page(self, path: Path, content: str) -> None:
-        if not isinstance(content, str):
-            raise TypeError('content must be a string')
+    def edit_page(self, path: Path, pattern: str, replacement: str) -> None:
+        if not isinstance(pattern, str):
+            raise TypeError('pattern must be a string')
+        if not isinstance(replacement, str):
+            raise TypeError('replacement must be a string')
 
         target = self._resolve_wiki_path(path)
         target = self._ensure_markdown_path(target)
@@ -532,7 +534,9 @@ class Vault:
         if not target.exists():
             raise FileNotFoundError(f'page does not exist: {target}')
 
-        self._write_page_content(target, content)
+        current_content = target.read_text(encoding='utf-8')
+        updated_content = current_content.replace(pattern, replacement)
+        self._write_page_content(target, updated_content)
 
     def delete_page(self, path: Path) -> None:
         target = self._resolve_wiki_path(path)
