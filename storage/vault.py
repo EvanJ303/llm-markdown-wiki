@@ -379,12 +379,19 @@ class Vault:
         except Exception:
             return
 
-    def search(self, query: str) -> list[SearchHit]:
+    def search(self, query: str, scope: Path | None = None) -> list[SearchHit]:
         hits: List[SearchHit] = []
         if not query or not query.strip():
             return hits
 
         q = query.strip()
+
+        scope_path = None
+        if scope is not None:
+            try:
+                scope_path = self._resolve_wiki_path(scope).resolve()
+            except Exception:
+                return hits
 
         try:
             # Try full-text search with FTS5 and produce a highlighted snippet
@@ -396,9 +403,15 @@ class Vault:
                 "JOIN chunks ON chunks_fts.rowid = chunks.chunk_id "
                 "JOIN documents ON chunks.document_id = documents.id "
                 "WHERE chunks_fts MATCH ? "
-                "LIMIT 200"
             )
-            cur = self.conn.execute(sql, (q,))
+            params = [q]
+
+            if scope_path is not None:
+                sql += "AND documents.path LIKE ? "
+                params.append(str(scope_path) + '%')
+
+            sql += "LIMIT 200"
+            cur = self.conn.execute(sql, params)
             for row in cur.fetchall():
                 path_str, snippet_text, page = row
                 if not snippet_text:
@@ -409,10 +422,15 @@ class Vault:
             # Fallback to simple LIKE search if FTS not available
             try:
                 like_q = f"%{q}%"
-                cur = self.conn.execute(
-                    'SELECT documents.path, chunks.content, chunks.page FROM chunks JOIN documents ON chunks.document_id = documents.id WHERE chunks.content LIKE ? LIMIT 200',
-                    (like_q,)
-                )
+                sql = 'SELECT documents.path, chunks.content, chunks.page FROM chunks JOIN documents ON chunks.document_id = documents.id WHERE chunks.content LIKE ? '
+                params = [like_q]
+
+                if scope_path is not None:
+                    sql += "AND documents.path LIKE ? "
+                    params.append(str(scope_path) + '%')
+
+                sql += "LIMIT 200"
+                cur = self.conn.execute(sql, params)
                 for path_str, content, page in cur.fetchall():
                     snippet_text = ''
                     try:
