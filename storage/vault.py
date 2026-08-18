@@ -505,7 +505,7 @@ class Vault:
 
     def _ensure_markdown_path(self, path: Path) -> Path:
         target = Path(path)
-        if target.suffix.lower() not in {'.md', '.markdown'}:
+        if target.suffix.lower() not in {'.md', '.markdown', '.csv', '.json', '.svg', '.txt'}:
             return target.with_suffix('.md')
         return target
 
