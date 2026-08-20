@@ -13,9 +13,11 @@ def init() -> None:
         with open(config_path, 'r') as f:
             config = json.load(f)
 
+        # Try to load vault location from config
         location = config['vault_location']
         vault_path = Path(location).resolve()
 
+        # Initialize the vault
         vault = Vault(vault_path)
         vault.close()
 
