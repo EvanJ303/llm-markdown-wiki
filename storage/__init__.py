@@ -1,1 +1,1 @@
-from vault import Vault
+from .vault import Vault

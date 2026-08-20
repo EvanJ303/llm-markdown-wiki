@@ -40,6 +40,7 @@ class Vault:
         self.db_path = self.root / '.llmwiki/index.db'
 
         self.wiki_path.mkdir(parents=True, exist_ok=True)
+        self.db_path.parent.mkdir(parents=True, exist_ok=True)
 
         config_path = Path(__file__).resolve().parent.parent / 'config.json'
         with open(config_path, 'r', encoding='utf-8') as f:
