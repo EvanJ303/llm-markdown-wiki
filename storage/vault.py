@@ -57,6 +57,20 @@ class Vault:
 
         self.conn.executescript(schema)
 
+    def _resolve_root_path(self, path: Path) -> Path:
+            if path.is_absolute():
+                resolved_path = path.resolve()
+            else:
+                resolved_path = (self.root / path).resolve()
+    
+            wiki_root = self.wiki_path.resolve()
+            try:
+                resolved_path.relative_to(wiki_root)
+            except ValueError as exc:
+                raise ValueError(f'page path must be inside the root directory: {path}') from exc
+    
+            return resolved_path
+
     def _extract_text(self, path: Path) -> List[tuple[str, int | None]]:
         suffix = path.suffix.lower()
         try:
@@ -263,7 +277,7 @@ class Vault:
         try:
             import hashlib
 
-            p = Path(path).resolve()
+            p = path
             stat = p.stat()
             current_mtime = str(stat.st_mtime)
 
@@ -287,7 +301,7 @@ class Vault:
         try:
             import hashlib
 
-            p = Path(path).resolve()
+            p = path
 
             if self._is_document_unchanged(p):
                 return
@@ -344,7 +358,7 @@ class Vault:
 
     def _remove_document(self, path: Path) -> None:
         try:
-            p = Path(path).resolve()
+            p = path
             try:
                 self.conn.execute('DELETE FROM documents WHERE path = ?', (str(p),))
                 self.conn.commit()
@@ -356,6 +370,7 @@ class Vault:
     def index_db(self) -> None:
         try:
             for p in self.wiki_path.rglob('*'):
+                p = self._resolve_root_path(p)
                 if not p.is_file():
                     continue
                 try:
@@ -369,8 +384,9 @@ class Vault:
                 rows = self.conn.execute('SELECT path FROM documents').fetchall()
                 for (doc_path,) in rows:
                     try:
-                        if not Path(doc_path).exists():
-                            self._remove_document(Path(doc_path))
+                        resolved_path = self._resolve_root_path(Path(doc_path))
+                        if not resolved_path.exists():
+                            self._remove_document(resolved_path)
                     except Exception:
                         continue
             except Exception:
@@ -389,7 +405,7 @@ class Vault:
         scope_path = None
         if scope is not None:
             try:
-                scope_path = self._resolve_wiki_path(scope).resolve()
+                scope_path = self._resolve_root_path(scope)
             except Exception:
                 return hits
 
@@ -453,7 +469,7 @@ class Vault:
                 return hits
 
     def read_document(self, path: Path, page_start: int | None = None, page_end: int | None = None) -> DocumentContent:
-        p = Path(path).resolve()
+        p = self._resolve_root_path(path)
 
         doc_row = self.conn.execute(
             'SELECT created, modified FROM documents WHERE path = ?',
@@ -507,63 +523,38 @@ class Vault:
         content = '\n\n'.join(content_parts).strip()
         return DocumentContent(content=content, created=created, modified=modified, path=p)
 
-    def _resolve_wiki_path(self, path: Path) -> Path:
-        if path.is_absolute():
-            target = path.resolve()
-        else:
-            target = (self.wiki_path / path).resolve()
+    def _write_document_content(self, path: Path, content: str) -> None:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(content, encoding='utf-8')
+        self._index_document(path)
 
-        wiki_root = self.wiki_path.resolve()
-        try:
-            target.relative_to(wiki_root)
-        except ValueError as exc:
-            raise ValueError(f'page path must be inside the wiki directory: {path}') from exc
-
-        return target
-
-    def _ensure_markdown_path(self, path: Path) -> Path:
-        target = Path(path)
-        if target.suffix.lower() not in {'.md', '.markdown', '.csv', '.json', '.svg', '.txt'}:
-            return target.with_suffix('.md')
-        return target
-
-    def _write_page_content(self, target: Path, content: str) -> None:
-        target.parent.mkdir(parents=True, exist_ok=True)
-        target.write_text(content, encoding='utf-8')
-        self._index_document(target)
-
-    def write_page(self, path: Path, content: str) -> None:
+    def write_document(self, path: Path, content: str) -> None:
         if not isinstance(content, str):
             raise TypeError('content must be a string')
 
-        target = self._resolve_wiki_path(path)
-        target = self._ensure_markdown_path(target)
-        self._write_page_content(target, content)
+        self._write_document_content(self._resolve_root_path(path), content)
 
-    def edit_page(self, path: Path, pattern: str, replacement: str) -> None:
+    def edit_document(self, path: Path, pattern: str, replacement: str) -> None:
         if not isinstance(pattern, str):
             raise TypeError('pattern must be a string')
         if not isinstance(replacement, str):
             raise TypeError('replacement must be a string')
 
-        target = self._resolve_wiki_path(path)
-        target = self._ensure_markdown_path(target)
+        path = self._resolve_root_path(path)
+        if not path.exists():
+            raise FileNotFoundError(f'document does not exist: {path}')
 
-        if not target.exists():
-            raise FileNotFoundError(f'page does not exist: {target}')
-
-        current_content = target.read_text(encoding='utf-8')
+        current_content = path.read_text(encoding='utf-8')
         updated_content = current_content.replace(pattern, replacement)
-        self._write_page_content(target, updated_content)
+        self._write_document_content(path, updated_content)
 
-    def delete_page(self, path: Path) -> None:
-        target = self._resolve_wiki_path(path)
-        target = self._ensure_markdown_path(target)
+    def delete_document(self, path: Path) -> None:
+        path = self._resolve_root_path(path)
+        if not path.exists():
+            raise FileNotFoundError(f'document does not exist: {path}')
 
-        if target.exists():
-            target.unlink()
-
-        self._remove_document(target)
+        path.unlink()
+        self._remove_document(path)
 
     def close(self) -> None:
         self.conn.close()
