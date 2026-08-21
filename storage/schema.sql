@@ -24,7 +24,7 @@ CREATE TABLE IF NOT EXISTS chunks (
     ON UPDATE CASCADE
 );
 
-CREATE INDEX idx_chunks_document_id ON chunks(document_id);
+CREATE INDEX IF NOT EXISTS idx_chunks_document_id ON chunks(document_id);
 
 CREATE VIRTUAL TABLE IF NOT EXISTS chunks_fts USING fts5(
     content,
