@@ -357,7 +357,7 @@ class Vault:
         except Exception:
             return
 
-    def _remove_document(self, path: Path) -> None:
+    def _unindex_document(self, path: Path) -> None:
         try:
             p = path
             try:
@@ -387,7 +387,7 @@ class Vault:
                     try:
                         resolved_path = self._resolve_root_path(Path(doc_path))
                         if not resolved_path.exists():
-                            self._remove_document(resolved_path)
+                            self._unindex_document(resolved_path)
                     except Exception:
                         continue
             except Exception:
@@ -555,7 +555,7 @@ class Vault:
             raise FileNotFoundError(f'document does not exist: {path}')
 
         path.unlink()
-        self._remove_document(path)
+        self._unindex_document(path)
 
     def close(self) -> None:
         self.conn.close()
