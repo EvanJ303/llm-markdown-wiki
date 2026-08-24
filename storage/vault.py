@@ -535,6 +535,22 @@ class Vault:
 
         self._write_document_content(self._resolve_root_path(path), content)
 
+    def append_to_document(self, path: Path, content: str) -> None:
+        if not isinstance(content, str):
+            raise TypeError('content must be a string')
+
+        path = self._resolve_root_path(path)
+        if not path.exists():
+            raise FileNotFoundError(f'document does not exist: {path}')
+
+        current_content = path.read_text(encoding='utf-8')
+
+        if not current_content.endswith('\n'):
+            current_content += '\n'
+
+        updated_content = current_content + content
+        self._write_document_content(path, updated_content)
+
     def edit_document(self, path: Path, pattern: str, replacement: str) -> None:
         if not isinstance(pattern, str):
             raise TypeError('pattern must be a string')

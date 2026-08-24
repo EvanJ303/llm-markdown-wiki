@@ -1,3 +1,4 @@
+import json
 import sys
 from pathlib import Path
 
@@ -18,9 +19,25 @@ def ensure_wiki_path(path: Path, vault: Vault) -> None:
     except ValueError as exc:
         raise ValueError(f'document path must be inside the wiki directory: {path}') from exc
 
-def ensure_valid_extension(path: Path) -> Path:
+def ensure_valid_extension(path: Path, operation: str) -> None:
     target = Path(path)
-    if target.suffix.lower() not in {'.md', '.markdown', '.csv', '.json', '.svg', '.txt'}:
-        return target.with_suffix('.md')
-    
-    return target
+
+    config_path = project_dir / 'config.json'
+    with open(config_path, 'r', encoding='utf-8') as config_file:
+        config = json.load(config_file)
+
+    extensions_by_operation = {
+        'write': config.get('writeable_extensions', []),
+        'append': config.get('appendable_extensions', []),
+    }
+    try:
+        approved_extensions = extensions_by_operation[operation]
+    except KeyError as exc:
+        raise ValueError(f'unsupported operation: {operation}') from exc
+
+    suffix = target.suffix.lower()
+    approved_extensions = {extension.lower() for extension in approved_extensions}
+    if suffix not in approved_extensions:
+        raise ValueError(
+            f'file extension {suffix or "<none>"} is not valid for {operation}: {target}'
+        )
