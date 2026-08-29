@@ -20,7 +20,7 @@ project_dir = Path(__file__).resolve().parent.parent
 with (project_dir / 'config.json').open(encoding='utf-8') as config_file:
 	config = json.load(config_file)
 
-vault = Vault(Path(config['vault_location']))
+vault = Vault(Path(config['vault_location']).resolve())
 server = FastMCP('llm-markdown-wiki')
 server.add_tool(partial(write, vault), name='write', description=write.__doc__)
 server.add_tool(partial(append, vault), name='append', description=append.__doc__)
