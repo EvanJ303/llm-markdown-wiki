@@ -18,7 +18,6 @@ atexit.register(vault.close)
 
 app = Typer(name='llmwiki')
 
-app.command()(partial(init, vault))
 app.command()(partial(ingest, vault))
 app.command()(partial(reindex, vault))
 app.command()(partial(remove, vault))
