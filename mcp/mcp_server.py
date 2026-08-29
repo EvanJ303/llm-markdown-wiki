@@ -6,14 +6,7 @@ from pathlib import Path
 from mcp.server.fastmcp import FastMCP
 
 from ..storage import Vault
-
-from .tools.append import append
-from .tools.delete import delete
-from .tools.edit import edit
-from .tools.guide import guide
-from .tools.read import read
-from .tools.search import search
-from .tools.write import write
+from .tools import append, delete, edit, guide, read, search, write
 
 
 # Create the MCP server and register the wiki tools

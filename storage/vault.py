@@ -4,6 +4,7 @@ import sqlite3
 from pathlib import Path
 from typing import List
 
+
 @dataclass
 class Document:
     path: Path
@@ -31,6 +32,7 @@ class DocumentContent:
     created: str
     modified: str
     path: Path
+
 
 class Vault:
     def __init__(self, root: Path) -> None:
