@@ -26,6 +26,7 @@ server.add_tool(partial(read, vault), name='read', description=read.__doc__)
 server.add_tool(partial(search, vault), name='search', description=search.__doc__)
 server.add_tool(guide, name='guide', description=guide.__doc__)
 
+
 if __name__ == '__main__':
 	try:
 		server.run()
