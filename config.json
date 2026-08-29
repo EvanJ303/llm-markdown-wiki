@@ -1,7 +1,7 @@
 {
-    "min_chunk_tokens" : 1,
-    "max_chunk_tokens" : 1,
-    "chunk_overlap" : 1,
+    "min_chunk_tokens" : 80,
+    "max_chunk_tokens" : 600,
+    "chunk_overlap" : 50,
     "vault_location" : "C:\\Vault",
     "writeable_extensions" : [".md", ".markdown", ".csv", ".json", ".svg", ".txt"],
     "appendable_extensions" : [".md", ".markdown", ".txt"]
