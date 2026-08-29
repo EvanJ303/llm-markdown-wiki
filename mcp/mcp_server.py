@@ -1,3 +1,4 @@
+import atexit
 import json
 from functools import partial
 from pathlib import Path
@@ -21,6 +22,8 @@ with (project_dir / 'config.json').open(encoding='utf-8') as config_file:
 	config = json.load(config_file)
 
 vault = Vault(Path(config['vault_location']).resolve())
+atexit.register(vault.close)
+
 server = FastMCP('llm-markdown-wiki')
 server.add_tool(partial(write, vault), name='write', description=write.__doc__)
 server.add_tool(partial(append, vault), name='append', description=append.__doc__)
@@ -31,4 +34,7 @@ server.add_tool(partial(search, vault), name='search', description=search.__doc_
 server.add_tool(guide, name='guide', description=guide.__doc__)
 
 if __name__ == '__main__':
-	server.run()
+	try:
+		server.run()
+	finally:
+		vault.close()
