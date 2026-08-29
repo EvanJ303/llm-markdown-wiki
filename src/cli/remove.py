@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from ...storage import Vault
+from storage import Vault
 
 
 def remove(vault: Vault, path: Path) -> None:

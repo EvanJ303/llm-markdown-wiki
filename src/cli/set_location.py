@@ -1,7 +1,7 @@
 import json
 from pathlib import Path
 
-project_dir = Path(__file__).resolve().parent.parent.parent.parent
+project_dir = Path(__file__).resolve().parent.parent.parent
 
 
 def set_location(location: Path) -> None:

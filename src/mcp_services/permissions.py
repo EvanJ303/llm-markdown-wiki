@@ -1,7 +1,7 @@
 import json
 from pathlib import Path
 
-from ..storage import Vault
+from storage import Vault
 
 
 project_dir = Path(__file__).resolve().parent.parent.parent

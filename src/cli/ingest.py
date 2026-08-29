@@ -1,7 +1,7 @@
 import shutil
 from pathlib import Path
 
-from ...storage import Vault
+from storage import Vault
 
 
 def ingest(vault: Vault, source: Path, destination: Path) -> None:

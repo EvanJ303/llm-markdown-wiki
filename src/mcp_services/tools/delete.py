@@ -1,7 +1,7 @@
 from pathlib import Path
 
 from ..permissions import ensure_wiki_path
-from ...storage import Vault
+from storage import Vault
 
 
 def delete(vault: Vault, path: str) -> str:

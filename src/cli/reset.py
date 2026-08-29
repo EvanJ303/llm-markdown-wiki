@@ -1,6 +1,6 @@
 import shutil
 
-from ...storage import Vault
+from storage import Vault
 
 
 def reset(vault: Vault) -> None:

@@ -1,4 +1,4 @@
-from ...storage import Vault
+from storage import Vault
 
 
 def init(vault: Vault) -> None:

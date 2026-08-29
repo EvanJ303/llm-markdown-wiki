@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from ...storage import Vault
+from storage import Vault
 
 
 def search(vault: Vault, query: str, scope: str | None = None) -> list[dict[str, str | int | None]]:

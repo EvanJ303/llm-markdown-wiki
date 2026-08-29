@@ -5,12 +5,12 @@ from pathlib import Path
 
 from mcp.server.fastmcp import FastMCP
 
-from ..storage import Vault
-from .tools import append, delete, edit, guide, read, search, write
+from storage import Vault
+from mcp_services.tools import append, delete, edit, guide, read, search, write
 
 
 # Create the MCP server and register the wiki tools
-project_dir = Path(__file__).resolve().parent.parent.parent
+project_dir = Path(__file__).resolve().parent.parent
 with (project_dir / 'config.json').open(encoding='utf-8') as config_file:
 	config = json.load(config_file)
 

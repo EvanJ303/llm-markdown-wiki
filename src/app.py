@@ -5,11 +5,11 @@ from pathlib import Path
 
 from typer import Typer
 
-from ..storage import Vault
-from .commands import ingest, init, reindex, remove, reset, set_location
+from storage import Vault
+from cli import ingest, init, reindex, remove, reset, set_location
 
 
-project_dir = Path(__file__).resolve().parent.parent.parent
+project_dir = Path(__file__).resolve().parent.parent
 with (project_dir / 'config.json').open(encoding='utf-8') as config_file:
 	config = json.load(config_file)
 
