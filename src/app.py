@@ -6,7 +6,7 @@ from pathlib import Path
 from typer import Typer
 
 from storage import Vault
-from cli import ingest, init, reindex, remove, reset, set_location
+from cli import ingest, reindex, remove, reset, set_location
 
 
 project_dir = Path(__file__).resolve().parent.parent
