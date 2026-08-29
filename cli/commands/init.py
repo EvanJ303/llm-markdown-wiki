@@ -1,11 +1,9 @@
-import sys
 import json
 from pathlib import Path
 
-project_dir = Path(__file__).resolve().parent.parent.parent
-sys.path.append(str(project_dir))
+from ...storage import Vault
 
-from storage import Vault
+project_dir = Path(__file__).resolve().parent.parent.parent
 
 def init() -> None:
     try:

@@ -1,9 +1,7 @@
 import json
-import sys
 from pathlib import Path
 
 project_dir = Path(__file__).resolve().parent.parent.parent
-sys.path.append(str(project_dir))
 
 
 def set_location(location: Path) -> None:

@@ -1,12 +1,10 @@
 import json
 import shutil
-import sys
 from pathlib import Path
 
-project_dir = Path(__file__).resolve().parent.parent.parent
-sys.path.append(str(project_dir))
+from ...storage import Vault
 
-from storage import Vault
+project_dir = Path(__file__).resolve().parent.parent.parent
 
 
 def ingest(source: Path, destination: Path) -> None:

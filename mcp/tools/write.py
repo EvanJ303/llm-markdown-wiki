@@ -1,8 +1,7 @@
 from pathlib import Path
 
-from storage import Vault
-
 from ..permissions import ensure_valid_extension, ensure_wiki_path
+from ...storage import Vault
 
 
 def write(vault: Vault, path: str, content: str) -> str:

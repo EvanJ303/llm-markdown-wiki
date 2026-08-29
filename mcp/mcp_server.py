@@ -4,7 +4,7 @@ from pathlib import Path
 
 from mcp.server.fastmcp import FastMCP
 
-from storage import Vault
+from ..storage import Vault
 
 from .tools.append import append
 from .tools.delete import delete
