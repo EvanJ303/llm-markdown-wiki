@@ -6,6 +6,7 @@ from storage import Vault
 
 project_dir = Path(__file__).resolve().parent.parent.parent
 
+
 def ensure_wiki_path(path: Path, vault: Vault) -> None:
     if path.is_absolute():
         resolved_path = path.resolve()

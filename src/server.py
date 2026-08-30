@@ -1,6 +1,7 @@
 import atexit
+import inspect
 import json
-from functools import partial
+from functools import partial, update_wrapper
 from pathlib import Path
 
 from mcp.server.fastmcp import FastMCP
@@ -17,14 +18,33 @@ with (project_dir / 'config.json').open(encoding='utf-8') as config_file:
 vault = Vault(Path(config['vault_location']).resolve())
 atexit.register(vault.close)
 
+
+def wrap_partial(func, *args, **kwargs):
+	partial_func = partial(func, *args, **kwargs)
+	update_wrapper(partial_func, func)
+
+	sig = inspect.signature(func)
+	bound_names = set(list(sig.parameters)[:len(args)]) | set(kwargs)
+	remaining_params = [
+		param for param in sig.parameters.values() if param.name not in bound_names
+	]
+	partial_func.__signature__ = sig.replace(parameters=remaining_params)
+	partial_func.__annotations__ = {
+		name: annotation
+		for name, annotation in func.__annotations__.items()
+		if name not in bound_names
+	}
+	return partial_func
+
+
 server = FastMCP('llm-markdown-wiki')
-server.add_tool(partial(write, vault), name='write', description=write.__doc__)
-server.add_tool(partial(append, vault), name='append', description=append.__doc__)
-server.add_tool(partial(edit, vault), name='edit', description=edit.__doc__)
-server.add_tool(partial(delete, vault), name='delete', description=delete.__doc__)
-server.add_tool(partial(read, vault), name='read', description=read.__doc__)
-server.add_tool(partial(search, vault), name='search', description=search.__doc__)
-server.add_tool(guide, name='guide', description=guide.__doc__)
+server.add_tool(wrap_partial(write, vault))
+server.add_tool(wrap_partial(append, vault))
+server.add_tool(wrap_partial(edit, vault))
+server.add_tool(wrap_partial(delete, vault))
+server.add_tool(wrap_partial(read, vault))
+server.add_tool(wrap_partial(search, vault))
+server.add_tool(guide)
 
 
 if __name__ == '__main__':
