@@ -1,4 +1,3 @@
-import atexit
 import inspect
 import json
 from functools import partial, update_wrapper
@@ -16,7 +15,6 @@ with (project_dir / 'config.json').open(encoding='utf-8') as config_file:
 	config = json.load(config_file)
 
 vault = Vault(Path(config['vault_location']).resolve())
-atexit.register(vault.close)
 
 
 def wrap_partial(func, *args, **kwargs):
