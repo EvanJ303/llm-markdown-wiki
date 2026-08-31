@@ -1,6 +1,6 @@
 from mcp.server.fastmcp import FastMCP
 
-from mcp_services.tools import append, delete, edit, guide, read, search, write
+from mcp_services import append, delete, edit, guide, read, search, write
 from utils import init_vault, wrap_partial
 
 

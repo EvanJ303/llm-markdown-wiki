@@ -19,6 +19,7 @@ def ensure_wiki_path(path: Path, vault: Vault) -> None:
     except ValueError as exc:
         raise ValueError(f'document path must be inside the wiki directory: {path}') from exc
 
+
 def ensure_valid_extension(path: Path, operation: str) -> None:
     target = Path(path)
 

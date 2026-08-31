@@ -5,6 +5,7 @@ from pathlib import Path
 
 from storage.vault import Vault
 
+
 def init_vault() -> Vault:
     project_dir = Path(__file__).resolve().parent.parent
     with (project_dir / 'config.json').open(encoding='utf-8') as config_file:
@@ -12,6 +13,7 @@ def init_vault() -> Vault:
 
     vault = Vault(Path(config['vault_location']).resolve())
     return vault
+
 
 def wrap_partial(func: callable, *args: tuple, **kwargs: dict) -> callable:
 	partial_func = partial(func, *args, **kwargs)

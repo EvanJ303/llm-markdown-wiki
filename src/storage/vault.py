@@ -16,16 +16,19 @@ class Document:
     hash: str
     processed: bool
 
+
 @dataclass
 class Chunk:
     content: str
     page: int | None = None
+
 
 @dataclass
 class SearchHit:
     path: Path
     snippet: str
     page: int | None = None
+
 
 @dataclass
 class DocumentContent:
