@@ -1,5 +1,6 @@
 import json
 from dataclasses import dataclass
+import shutil
 import sqlite3
 from pathlib import Path
 from typing import List
@@ -574,6 +575,22 @@ class Vault:
 
         path.unlink()
         self._unindex_document(path)
+
+    def reset(self) -> None:
+        try:
+            for child in self.wiki_path.iterdir():
+                if child.is_dir():
+                    shutil.rmtree(child)
+                else:
+                    child.unlink()
+
+            self.conn.execute('DELETE FROM chunks')
+            self.conn.execute('DELETE FROM documents')
+            self.conn.execute("INSERT INTO chunks_fts(chunks_fts) VALUES('rebuild')")
+            self.conn.commit()
+            print(f"Wiki reset at '{self.root}'.")
+        except Exception as exc:
+            print(f'Error resetting wiki: {exc}')
 
     def close(self) -> None:
         self.conn.close()
