@@ -1,13 +1,16 @@
+import atexit
 import json
 import shutil
 from pathlib import Path
 from typer import Typer
 
-from storage import Vault
-from utils import init_vault, wrap_partial
+from llmwiki.vault_storage import Vault
+from llmwiki.utils import init_vault, wrap_partial
 
 
 vault = init_vault()
+atexit.register(vault.close)  # Ensure the vault is closed when the program exits
+
 app = Typer(name='llmwiki')
 
 
@@ -65,7 +68,7 @@ def reset(vault: Vault) -> None:
 
 
 def set_location(location: Path) -> None:
-	project_dir = Path(__file__).resolve().parent.parent
+	project_dir = Path(__file__).resolve().parent.parent.parent
 	try:
 		config_path = project_dir / 'config.json'
 		with open(config_path, 'r', encoding='utf-8') as f:
@@ -91,7 +94,4 @@ app.command('set-location')(set_location)
 
 
 if __name__ == '__main__':
-	try:
-		app()
-	finally:
-		vault.close()
+	app()

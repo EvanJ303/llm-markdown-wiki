@@ -1,10 +1,10 @@
 import json
 from pathlib import Path
 
-from storage import Vault
+from llmwiki.vault_storage import Vault
 
 
-project_dir = Path(__file__).resolve().parent.parent.parent
+project_dir = Path(__file__).resolve().parent.parent.parent.parent
 
 
 def ensure_wiki_path(path: Path, vault: Vault) -> None:

@@ -1,7 +1,7 @@
 from pathlib import Path
 
-from .permissions import ensure_valid_extension, ensure_wiki_path
-from storage import Vault
+from llmwiki.mcp_services.permissions import ensure_valid_extension, ensure_wiki_path
+from llmwiki.vault_storage import Vault
 
 
 def append(vault: Vault, path: str, content: str) -> str:
