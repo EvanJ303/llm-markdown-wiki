@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "llm-markdown-wiki"
 version = "0.1.0"
-description = " Simple CLI-based markdown wiki tool that provides an entry point"
+description = " Simple CLI-based tool that allows you to create an entry point for an LLM to build a specialized markdown wiki out of selected source documents"
 readme = "README.md"
 requires-python = ">=3.10"
 license = {text = "MIT"}
