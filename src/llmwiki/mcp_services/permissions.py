@@ -1,10 +1,7 @@
-import json
 from pathlib import Path
 
+from llmwiki.config import load_config
 from llmwiki.vault_storage import Vault
-
-
-project_dir = Path(__file__).resolve().parent.parent.parent.parent
 
 
 def ensure_wiki_path(path: Path, vault: Vault) -> None:
@@ -23,9 +20,7 @@ def ensure_wiki_path(path: Path, vault: Vault) -> None:
 def ensure_valid_extension(path: Path, operation: str) -> None:
     target = Path(path)
 
-    config_path = project_dir / 'config.json'
-    with open(config_path, 'r', encoding='utf-8') as config_file:
-        config = json.load(config_file)
+    config = load_config()
 
     extensions_by_operation = {
         'write': config.get('writeable_extensions', []),

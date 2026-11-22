@@ -1,9 +1,9 @@
 import atexit
-import json
 import shutil
 from pathlib import Path
 from typer import Typer
 
+from llmwiki.config import load_config, save_config
 from llmwiki.vault_storage import Vault
 from llmwiki.utils import init_vault, wrap_partial
 
@@ -68,18 +68,11 @@ def reset(vault: Vault) -> None:
 
 
 def set_location(location: Path) -> None:
-	project_dir = Path(__file__).resolve().parent.parent.parent
 	try:
-		config_path = project_dir / 'config.json'
-		with open(config_path, 'r', encoding='utf-8') as f:
-			config = json.load(f)
-
+		config = load_config()
 		location_path = Path(location).expanduser().resolve()
 		config['vault_location'] = str(location_path)
-
-		with open(config_path, 'w', encoding='utf-8') as f:
-			json.dump(config, f, indent=4)
-			f.write('\n')
+		save_config(config)
 
 		print(f"Vault location set to '{location_path}'.")
 	except Exception as e:

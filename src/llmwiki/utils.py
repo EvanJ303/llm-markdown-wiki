@@ -1,16 +1,13 @@
 import inspect
-import json
 from functools import partial, update_wrapper
 from pathlib import Path
 
+from llmwiki.config import load_config
 from llmwiki.vault_storage import Vault
 
 
 def init_vault() -> Vault:
-    project_dir = Path(__file__).resolve().parent.parent.parent
-    with (project_dir / 'config.json').open(encoding='utf-8') as config_file:
-        config = json.load(config_file)
-
+    config = load_config()
     vault = Vault(Path(config['vault_location']).resolve())
     return vault
 

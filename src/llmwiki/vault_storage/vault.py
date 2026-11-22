@@ -1,9 +1,10 @@
-import json
 from dataclasses import dataclass
 import shutil
 import sqlite3
 from pathlib import Path
 from typing import List
+
+from llmwiki.config import load_config
 
 
 @dataclass
@@ -48,13 +49,11 @@ class Vault:
         self.wiki_path.mkdir(parents=True, exist_ok=True)
         self.db_path.parent.mkdir(parents=True, exist_ok=True)
 
-        config_path = Path(__file__).resolve().parent.parent.parent.parent / 'config.json'
-        with open(config_path, 'r', encoding='utf-8') as f:
-            cfg = json.load(f)
-            self.chunk_size = cfg.get('chunk_size', 200)
-            self.chunk_overlap = cfg.get('chunk_overlap', 20)
-            self.min_chunk_tokens = cfg.get('min_chunk_tokens', 50)
-            self.max_chunk_chars = cfg.get('max_chunk_chars', 2000)
+        cfg = load_config()
+        self.chunk_size = cfg.get('chunk_size', 200)
+        self.chunk_overlap = cfg.get('chunk_overlap', 20)
+        self.min_chunk_tokens = cfg.get('min_chunk_tokens', 50)
+        self.max_chunk_chars = cfg.get('max_chunk_chars', 2000)
 
         self.conn = sqlite3.connect(self.db_path)
         
