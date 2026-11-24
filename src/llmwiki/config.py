@@ -36,3 +36,4 @@ def save_config(config: dict) -> None:
 	with config_path.open('w', encoding='utf-8') as config_file:
 		json.dump(config, config_file, indent=4)
 		config_file.write('\n')
+		
